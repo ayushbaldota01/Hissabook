@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0d9488;
+  --primary-dark: #0f766e;
+  --accent: #f59e0b;
+  --take: #059669;
+  --give: #dc2626;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(13, 148, 136, 0.15);
+  --card-shadow: 0 4px 20px rgba(13, 148, 136, 0.08), 0 1px 3px rgba(0,0,0,0.06);
+}
+
+body {
+  background: linear-gradient(160deg, #f0fdfa 0%, #e0f2fe 40%, #fef9c3 100%);
+  min-height: 100vh;
+  color: #1e293b;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #0d5c54 100%);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+}
+
+.btn-secondary {
+  background: white;
+  color: #475569;
+  border: 1.5px solid #e2e8f0;
+  font-weight: 500;
+}
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tag { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 9999px; }
+.tag-supplier { background: #dbeafe; color: #1d4ed8; }
+.tag-customer { background: #dcfce7; color: #15803d; }
+.tag-partner { background: #fef3c7; color: #b45309; }
+.tag-other { background: #f1f5f9; color: #475569; }

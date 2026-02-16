@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Party {
+  id              String        @id @default(cuid())
+  name            String        @unique
+  type            String        // Supplier | Customer | Partner | Other
+  phone           String?
+  notes           String?
+  openingBalance  Float         @default(0)
+  isArchived      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  transactions    Transaction[]
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  partyId         String
+  party           Party    @relation(fields: [partyId], references: [id])
+  type            String   // GIVEN | RECEIVED
+  amount          Float
+  transactionDate DateTime
+  description     String?
+  isDeleted       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
