@@ -17,3 +17,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(party)
 }
+
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  // Delete transactions first
+  await supabase.from('Transaction').delete().eq('partyId', id)
+  // Delete party
+  const { error } = await supabase.from('Party').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ ok: true })
+}

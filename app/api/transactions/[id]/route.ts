@@ -9,6 +9,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.amount != null) updates.amount = body.amount
   if (body.transactionDate) updates.transactionDate = body.transactionDate
   if (body.description != null) updates.description = body.description
+  
+  // Set edited flags
+  updates.isEdited = true
+  updates.editedAt = new Date().toISOString()
+
   const { data: txn, error } = await supabase.from('Transaction').update(updates).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(txn)

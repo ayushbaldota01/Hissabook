@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 type Party = { id: string; name: string; type: string; balance: number; lastTransactionDate: string }
-type Stats = { toTake: number; toGive: number; net: number }
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
@@ -16,18 +15,25 @@ function tagClass(t: string) {
 
 export default function Dashboard() {
   const [parties, setParties] = useState<Party[]>([])
-  const [stats, setStats] = useState<Stats | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'take' | 'give' | 'settled'>('all')
   const [archived, setArchived] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetch(`/api/parties?archived=${archived}`).then((r) => r.json()).then(setParties).finally(() => setLoading(false))
-  }, [archived])
-  useEffect(() => {
-    fetch('/api/stats').then((r) => r.json()).then((s) => setStats({ toTake: s.toTake, toGive: s.toGive, net: s.net }))
-  }, [parties])
+  const loadParties = () => {
+    fetch(`/api/parties?archived=${archived}`)
+      .then((r) => r.json())
+      .then((data) => setParties(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { loadParties() }, [archived])
+
+  // Compute stats directly from loaded parties — always in sync, no extra API call
+  const toTake = parties.filter((p) => p.balance > 0).reduce((s, p) => s + p.balance, 0)
+  const toGive = parties.filter((p) => p.balance < 0).reduce((s, p) => s + Math.abs(p.balance), 0)
+  const net = toTake - toGive
+
 
   let list = parties.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
   if (filter === 'take') list = list.filter((p) => p.balance > 0)
@@ -45,22 +51,20 @@ export default function Dashboard() {
         </nav>
       </div>
 
-      {stats && (
-        <div className="card rounded-2xl p-5 sm:p-6 mb-6 grid grid-cols-3 gap-4">
-          <div className="text-center p-3 rounded-xl bg-emerald-50">
-            <div className="text-xs sm:text-sm text-emerald-600 font-semibold">To Take</div>
-            <div className="font-bold text-emerald-700 text-lg sm:text-xl mt-1">{fmt(stats.toTake)}</div>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-red-50">
-            <div className="text-xs sm:text-sm text-red-600 font-semibold">To Give</div>
-            <div className="font-bold text-red-700 text-lg sm:text-xl mt-1">{fmt(stats.toGive)}</div>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-slate-50">
-            <div className="text-xs sm:text-sm text-slate-600 font-semibold">Net</div>
-            <div className={`font-bold text-lg sm:text-xl mt-1 ${stats.net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{fmt(stats.net)}</div>
-          </div>
+      <div className="card rounded-2xl p-5 sm:p-6 mb-6 grid grid-cols-3 gap-4">
+        <div className="text-center p-3 rounded-xl bg-emerald-50">
+          <div className="text-xs sm:text-sm text-emerald-600 font-semibold">To Take</div>
+          <div className="font-bold text-emerald-700 text-lg sm:text-xl mt-1">{loading ? '…' : fmt(toTake)}</div>
         </div>
-      )}
+        <div className="text-center p-3 rounded-xl bg-red-50">
+          <div className="text-xs sm:text-sm text-red-600 font-semibold">To Give</div>
+          <div className="font-bold text-red-700 text-lg sm:text-xl mt-1">{loading ? '…' : fmt(toGive)}</div>
+        </div>
+        <div className="text-center p-3 rounded-xl bg-slate-50">
+          <div className="text-xs sm:text-sm text-slate-600 font-semibold">Net</div>
+          <div className={`font-bold text-lg sm:text-xl mt-1 ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{loading ? '…' : fmt(net)}</div>
+        </div>
+      </div>
 
       <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-5">
         <input type="text" placeholder="Search parties..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-0 px-4 py-3 rounded-xl border border-slate-200 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 outline-none" />
@@ -76,7 +80,9 @@ export default function Dashboard() {
         </label>
       </div>
 
-      <AddPartyModal onAdd={() => fetch(`/api/parties?archived=${archived}`).then((r) => r.json()).then(setParties)} />
+      <AddPartyModal onAdd={() => {
+        fetch(`/api/parties?archived=${archived}`).then((r) => r.json()).then((data) => setParties(Array.isArray(data) ? data : []))
+      }} />
 
       {loading ? (
         <div className="py-12 text-center text-slate-500">Loading...</div>
