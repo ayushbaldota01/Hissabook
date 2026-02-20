@@ -28,6 +28,9 @@ export default function PartyLedger() {
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+
   const load = () => {
     fetch(`/api/parties/${id}`).then((r) => r.json()).then(setParty)
     fetch(`/api/parties/${id}/transactions`).then((r) => r.json()).then(setTxns)
@@ -38,6 +41,13 @@ export default function PartyLedger() {
     if (!party) return
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
+
+    const filteredTxns = txns.filter(t => {
+      const d = t.transactionDate.slice(0, 10)
+      if (startDate && d < startDate) return false
+      if (endDate && d > endDate) return false
+      return true
+    })
 
     const doc = new jsPDF({ unit: 'mm', format: 'a4' })
     const pageW = 210
@@ -72,12 +82,20 @@ export default function PartyLedger() {
     doc.setFontSize(9)
     doc.setTextColor(71, 85, 105)
     doc.text(`Date of Issue: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, 14, 50)
-    if (party.phone) doc.text(`Contact: ${party.phone}`, 14, 55)
+    if (startDate || endDate) {
+      const range = `${startDate ? fmtDate(startDate) : 'Beginning'} to ${endDate ? fmtDate(endDate) : 'Present'}`
+      doc.text(`Period: ${range}`, 14, 55)
+      if (party.phone) doc.text(`Contact: ${party.phone}`, 14, 60)
+    } else {
+      if (party.phone) doc.text(`Contact: ${party.phone}`, 14, 55)
+    }
 
     // ── SUMMARY BOXES ────────────────────────────────────────────
-    const totalDebit = txns.reduce((s, t) => t.type === 'GIVEN' ? s + t.amount : s, 0)
-    const totalCredit = txns.reduce((s, t) => t.type === 'RECEIVED' ? s + t.amount : s, 0)
-    const netBal = party.balance
+    const totalDebit = filteredTxns.reduce((s, t) => t.type === 'GIVEN' ? s + t.amount : s, 0)
+    const totalCredit = filteredTxns.reduce((s, t) => t.type === 'RECEIVED' ? s + t.amount : s, 0)
+    // For net balance in PDF, if filtered, it should be (sum of Dr - sum of Cr). 
+    // But since it's a statement, usually we show net balance of the filtered period.
+    const netBal = totalDebit - totalCredit
 
     const summaryY = 60
     const boxH = 18
@@ -110,7 +128,7 @@ export default function PartyLedger() {
     // Store running balance values for color lookup by row index
     const runningValues: number[] = []
 
-    const tableBody: string[][] = txns.map(t => {
+    const tableBody: string[][] = filteredTxns.map(t => {
       runningValues.push(t.running)
       return [
         fmtDate(t.transactionDate),
@@ -214,10 +232,15 @@ export default function PartyLedger() {
           <button onClick={() => setAddOpen(true)} className="btn-primary px-5 py-2.5 rounded-xl text-sm sm:text-base shrink-0">
             + Add Transaction
           </button>
-          <button onClick={exportPDF} className="btn-secondary px-4 py-2.5 rounded-xl text-sm shrink-0 inline-flex items-center gap-1.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-            Export PDF
-          </button>
+          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent border-none text-xs focus:ring-0 w-28" />
+            <span className="text-slate-400 text-xs">to</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent border-none text-xs focus:ring-0 w-28" />
+            <button onClick={exportPDF} className="btn-secondary px-3 py-1.5 rounded-lg text-xs shrink-0 inline-flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              PDF
+            </button>
+          </div>
           <button onClick={() => setEditOpen(true)} className="btn-secondary px-4 py-2.5 rounded-xl text-sm shrink-0">
             Edit Party
           </button>
@@ -340,6 +363,9 @@ export default function PartyLedger() {
 
 // Helper for labels
 function getTxnLabel(txnType: 'GIVEN' | 'RECEIVED', partyType: string) {
+  if (partyType === 'Partner') {
+    return txnType === 'GIVEN' ? 'Goods Given' : 'Goods Taken / Payment'
+  }
   if (partyType === 'Supplier') {
     return txnType === 'GIVEN' ? 'Payment Given' : 'Goods Taken'
   }
