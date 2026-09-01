@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import pdf = require('pdf-parse');
-
+import { PDFParse } from 'pdf-parse';
 
 export async function POST(req: Request) {
   try {
@@ -11,8 +10,10 @@ export async function POST(req: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const data = await pdf(buffer);
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    const data = await parser.getText();
     const text = data.text;
+
     
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const transactions = [];
