@@ -52,44 +52,47 @@ export default function ViewBill() {
   }
 
   const executeWaShare = async () => {
-    if (!bill) return
+    if (!bill || !waNumber) return
     const profile = getBusinessProfile()
     
     setSharing(true)
+    let pdfUrl = ''
     
     try {
       const blob = generateRetailBillPDF(bill)
-      const file = new File([blob], `Bill_${bill.billNo}.pdf`, { type: 'application/pdf' })
-      const text = `Hello *${bill.customerName}*,\n\nYour bill from *${profile.shopName}* is ready.\n\n*Bill No:* ${bill.billNo}\n*Amount:* ₹${bill.total.toFixed(2)}\n*Vehicle:* ${bill.regNo || 'N/A'}\n\nPlease find the PDF document attached.\n\nThank you!`.replace(/&/g, '%26')
       
-      // Use Native Web Share API to attach the ACTUAL PDF file
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Bill ${bill.billNo} from ${profile.shopName}`,
-          text: `Hello ${bill.customerName},\n\nPlease find attached your bill for ₹${bill.total.toFixed(2)}.\n\nThank you for choosing ${profile.shopName}!`,
-          files: [file]
-        })
-      } else {
-        alert("Your browser does not support sharing files directly. The PDF will be downloaded instead, please attach it manually in WhatsApp.")
-        // Fallback to downloading
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `Bill_${bill.billNo}_${bill.customerName.replace(/\s+/g, '_')}.pdf`
-        a.click()
-        URL.revokeObjectURL(url)
-        
-        // Open WhatsApp chat directly
-        const cleanNum = waNumber.replace(/\D/g, '')
-        const waUrl = `https://wa.me/91${cleanNum}?text=${encodeURIComponent(text)}`
-        window.open(waUrl, '_blank')
+      const formData = new FormData()
+      formData.append('file', blob, `Bill_${bill.billNo}.pdf`)
+      formData.append('billNo', bill.billNo)
+      
+      const response = await fetch('/api/upload-bill', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        if (data.error && data.error.includes('private access')) {
+           throw new Error("Your Vercel Blob Store is set to PRIVATE. Please delete it in the Vercel Dashboard and create a new one as PUBLIC.")
+        }
+        throw new Error(data.error || 'Failed to upload PDF to server')
       }
-    } catch (err) {
-      console.log('Share failed or cancelled', err)
-    } finally {
-      setShowWaModal(false)
+
+      pdfUrl = data.url
+    } catch (err: any) {
+      console.error(err)
+      alert(err.message || "Failed to upload the bill PDF.")
       setSharing(false)
+      return // Stop execution if upload fails
     }
+
+    const text = `Hello *${bill.customerName}*,\n\nYour bill from *${profile.shopName}* is ready.\n\n*Bill No:* ${bill.billNo}\n*Amount:* ₹${bill.total.toFixed(2)}\n*Vehicle:* ${bill.regNo || 'N/A'}\n\nPlease click the link below to view/download your PDF bill:\n${pdfUrl}\n\nThank you!`.replace(/&/g, '%26')
+    const cleanNum = waNumber.replace(/\D/g, '')
+    const waUrl = `https://wa.me/91${cleanNum}?text=${encodeURIComponent(text)}`
+      
+    window.open(waUrl, '_blank')
+    setShowWaModal(false)
+    setSharing(false)
   }
 
   const handleDelete = async () => {
@@ -204,21 +207,35 @@ export default function ViewBill() {
               <h2 className="text-lg font-bold text-slate-800">Share to WhatsApp</h2>
             </div>
             <p className="text-slate-600 mb-4 text-sm leading-relaxed">
-              We will open your device's native Share menu so the actual PDF is attached.
+              Enter the WhatsApp number to share directly. 
               <br/><br/>
               <span className="bg-teal-50 text-teal-800 px-2 py-1 rounded border border-teal-100 font-medium text-xs inline-block mt-1">
-                Note: You will need to select the WhatsApp contact manually.
+                Tip: We will securely upload the PDF and send a direct download link!
               </span>
             </p>
             <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">WhatsApp Number (India)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">+91</span>
+                  <input
+                    type="tel"
+                    value={waNumber}
+                    onChange={(e) => setWaNumber(e.target.value)}
+                    placeholder="E.g. 9876543210"
+                    disabled={sharing}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none font-semibold text-slate-800 disabled:opacity-50"
+                  />
+                </div>
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={executeWaShare}
-                  disabled={sharing}
-                  className="w-full py-3 rounded-xl font-bold bg-[#25D366] text-white hover:bg-[#1DA851] disabled:opacity-50 transition-colors shadow-sm shadow-[#25D366]/20 flex justify-center items-center gap-2"
+                  disabled={!waNumber || sharing}
+                  className="flex-1 py-3 rounded-xl font-bold bg-[#25D366] text-white hover:bg-[#1DA851] disabled:opacity-50 transition-colors shadow-sm shadow-[#25D366]/20 flex justify-center items-center gap-2"
                 >
                   {sharing && <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                  {sharing ? 'Opening Share...' : 'Share PDF File'}
+                  {sharing ? 'Uploading...' : 'Open Chat'}
                 </button>
                 <button onClick={() => !sharing && setShowWaModal(false)} disabled={sharing} className="flex-1 btn-secondary py-3 rounded-xl font-bold disabled:opacity-50">Cancel</button>
               </div>
