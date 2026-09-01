@@ -1,0 +1,9 @@
+{
+  "name": "HisaabBook",
+  "short_name": "HisaabBook",
+  "description": "Retail Billing & Ledger",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc"
+}
