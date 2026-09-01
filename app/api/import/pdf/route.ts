@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    const transactions = [];
+    const transactions: { transactionDate: string; description: string; amount: number; type: string }[] = [];
     let currentBalance = 0;
     let bufferLine = '';
     

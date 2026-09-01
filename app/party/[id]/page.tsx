@@ -513,7 +513,7 @@ function EditTxnModal({ txn, partyType, onClose }: { txn: Txn; partyType: string
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      if (txn.id) await updateTransaction(txn.id, { type, amount: parseFloat(amount), transactionDate: date, description: desc || undefined })
+      if (txn.id) await updateTransaction(txn.id, { type: type as 'OPENING' | 'GIVEN' | 'RECEIVED', amount: parseFloat(amount), transactionDate: date, description: desc || undefined })
     } catch (err) {
       console.error(err)
     }

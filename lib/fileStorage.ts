@@ -26,6 +26,7 @@ export type Transaction = {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+  isEdited?: boolean;
 };
 
 export type DataSchema = {
@@ -213,8 +214,8 @@ export async function updateTransaction(id: string, updates: Partial<Transaction
     ...data.transactions[index],
     ...updates,
     updatedAt: new Date().toISOString(),
-    ...((updates as any).isEdited === undefined ? { isEdited: true } : {})
-  } as any;
+    ...((updates.isEdited === undefined) ? { isEdited: true } : {})
+  };
   await writeData(data);
   return data.transactions[index];
 }
