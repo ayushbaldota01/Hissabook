@@ -1,0 +1,7 @@
+node_modules
+.next
+.env
+.env.local
+*.db
+Client 1/
+data.json
