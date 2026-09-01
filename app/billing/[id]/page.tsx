@@ -15,6 +15,7 @@ export default function ViewBill() {
   const [generating, setGenerating] = useState(false)
   const [showWaModal, setShowWaModal] = useState(false)
   const [waNumber, setWaNumber] = useState('')
+  const [sharing, setSharing] = useState(false)
 
   useEffect(() => {
     getBill(id).then(b => {
@@ -50,29 +51,43 @@ export default function ViewBill() {
     setShowWaModal(true)
   }
 
-  const executeWaShare = () => {
+  const executeWaShare = async () => {
     if (!bill || !waNumber) return
     const profile = getBusinessProfile()
     
-    // Auto-download PDF for easy attachment
+    setSharing(true)
+    let pdfUrl = ''
+    
     try {
       const blob = generateRetailBillPDF(bill)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `Bill_${bill.billNo}_${bill.customerName.replace(/\s+/g, '_')}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
+      
+      const formData = new FormData()
+      formData.append('file', blob, `Bill_${bill.billNo}.pdf`)
+      formData.append('billNo', bill.billNo)
+      
+      const response = await fetch('/api/upload-bill', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload PDF to server')
+      }
+
+      const data = await response.json()
+      pdfUrl = data.url
     } catch (err) {
       console.error(err)
+      alert("Failed to upload the bill PDF. The link won't be included in the message.")
     }
 
-    const text = `Hello *${bill.customerName}*,\n\nYour bill from *${profile.shopName}* is ready.\n\n*Bill No:* ${bill.billNo}\n*Amount:* ₹${bill.total.toFixed(2)}\n*Vehicle:* ${bill.regNo || 'N/A'}\n\nPlease find the PDF document attached.\n\nThank you!`.replace(/&/g, '%26')
+    const text = `Hello *${bill.customerName}*,\n\nYour bill from *${profile.shopName}* is ready.\n\n*Bill No:* ${bill.billNo}\n*Amount:* ₹${bill.total.toFixed(2)}\n*Vehicle:* ${bill.regNo || 'N/A'}\n\n${pdfUrl ? `Please click the link below to view/download your PDF bill:\n${pdfUrl}\n\n` : ''}Thank you!`.replace(/&/g, '%26')
     const cleanNum = waNumber.replace(/\D/g, '')
     const waUrl = `https://wa.me/91${cleanNum}?text=${encodeURIComponent(text)}`
       
     window.open(waUrl, '_blank')
     setShowWaModal(false)
+    setSharing(false)
   }
 
   const handleDelete = async () => {
@@ -190,7 +205,7 @@ export default function ViewBill() {
               Enter the WhatsApp number to share directly. 
               <br/><br/>
               <span className="bg-teal-50 text-teal-800 px-2 py-1 rounded border border-teal-100 font-medium text-xs inline-block mt-1">
-                Tip: The PDF will download automatically. Simply paste or drag it into the chat once WhatsApp opens!
+                Tip: We will securely upload the PDF and send a direct download link!
               </span>
             </p>
             <div className="space-y-4">
@@ -203,19 +218,21 @@ export default function ViewBill() {
                     value={waNumber}
                     onChange={(e) => setWaNumber(e.target.value)}
                     placeholder="E.g. 9876543210"
-                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none font-semibold text-slate-800"
+                    disabled={sharing}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366]/20 outline-none font-semibold text-slate-800 disabled:opacity-50"
                   />
                 </div>
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={executeWaShare}
-                  disabled={!waNumber}
-                  className="flex-1 py-3 rounded-xl font-bold bg-[#25D366] text-white hover:bg-[#1DA851] disabled:opacity-50 transition-colors shadow-sm shadow-[#25D366]/20"
+                  disabled={!waNumber || sharing}
+                  className="flex-1 py-3 rounded-xl font-bold bg-[#25D366] text-white hover:bg-[#1DA851] disabled:opacity-50 transition-colors shadow-sm shadow-[#25D366]/20 flex justify-center items-center gap-2"
                 >
-                  Open Chat
+                  {sharing && <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                  {sharing ? 'Uploading...' : 'Open Chat'}
                 </button>
-                <button onClick={() => setShowWaModal(false)} className="flex-1 btn-secondary py-3 rounded-xl font-bold">Cancel</button>
+                <button onClick={() => !sharing && setShowWaModal(false)} disabled={sharing} className="flex-1 btn-secondary py-3 rounded-xl font-bold disabled:opacity-50">Cancel</button>
               </div>
             </div>
           </div>
