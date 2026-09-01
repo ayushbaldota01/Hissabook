@@ -5,9 +5,10 @@ export type BillItem = {
   id: string;
   section: 'PARTS' | 'LABOUR';
   description: string;
-  qty: number;
-  rate: number;
-  amount: number;
+  qty: number | '';
+  rate: number | '';
+  amount: number | '';
+  unit?: string;
 };
 
 export type Bill = {

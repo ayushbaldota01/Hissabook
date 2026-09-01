@@ -87,8 +87,8 @@ export function generateRetailBillPDF(bill: Bill, profile?: BusinessProfile): Bl
   // --- ITEMS TABLE ---
   const parts = bill.items.filter(i => i.section === 'PARTS')
   const labour = bill.items.filter(i => i.section === 'LABOUR')
-  const partsTotal = parts.reduce((acc, item) => acc + item.amount, 0)
-  const labourTotal = labour.reduce((acc, item) => acc + item.amount, 0)
+  const partsTotal = parts.reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+  const labourTotal = labour.reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
 
   const body: any[][] = []
 
@@ -96,7 +96,11 @@ export function generateRetailBillPDF(bill: Bill, profile?: BusinessProfile): Bl
   if (parts.length > 0) {
     body.push([{ content: 'PARTS', colSpan: 5, styles: { fontStyle: 'bold', font: 'helvetica' } }])
     parts.forEach((p, idx) => {
-      body.push([idx + 1, p.description, p.qty.toFixed(2), p.rate.toFixed(2), p.amount.toFixed(2)])
+      const q = typeof p.qty === 'number' ? p.qty.toString() : (p.qty || '');
+      const unit = p.unit ? ` ${p.unit}` : '';
+      const r = typeof p.rate === 'number' ? p.rate.toFixed(2) : '';
+      const a = typeof p.amount === 'number' ? p.amount.toFixed(2) : '';
+      body.push([idx + 1, p.description, q + unit, r, a])
     })
     body.push([{ content: '', colSpan: 3 }, { content: 'Total', styles: { fontStyle: 'bold', halign: 'right' } }, { content: partsTotal.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }])
   }
@@ -105,7 +109,8 @@ export function generateRetailBillPDF(bill: Bill, profile?: BusinessProfile): Bl
   if (labour.length > 0) {
     body.push([{ content: 'LABOUR', colSpan: 5, styles: { fontStyle: 'bold', font: 'helvetica' } }])
     labour.forEach((l, idx) => {
-      body.push([idx + 1, l.description, '', '', l.amount.toFixed(2)]) // PDF example leaves qty/rate blank for labour
+      const a = typeof l.amount === 'number' ? l.amount.toFixed(2) : '';
+      body.push([idx + 1, l.description, '', '', a]) // PDF example leaves qty/rate blank for labour
     })
     body.push([{ content: '', colSpan: 3 }, { content: 'Total', styles: { fontStyle: 'bold', halign: 'right' } }, { content: labourTotal.toFixed(2), styles: { fontStyle: 'bold', halign: 'right' } }])
   }
@@ -137,15 +142,22 @@ export function generateRetailBillPDF(bill: Bill, profile?: BusinessProfile): Bl
       3: { cellWidth: 30, halign: 'right' },
       4: { cellWidth: 30, halign: 'right' },
     },
-    margin: { left: 10, right: 10 },
+    margin: { left: 10, right: 10, bottom: 65 },
     tableWidth: 'auto',
+    didDrawPage: function (data) {
+      if (data.pageNumber > 1) {
+        doc.setDrawColor(0)
+        doc.setLineWidth(0.5)
+        doc.rect(10, 10, pageW - 20, 277)
+      }
+    }
   })
 
   const finalY = (doc as any).lastAutoTable.finalY
 
   // --- FOOTER SECTION ---
   // Ensure we have enough space for footer, else add page (simplified for now, assume single page or standard footer placement)
-  const footY = Math.max(finalY, 230) // Push footer to bottom
+  const footY = Math.max(finalY, 235) // Push footer to bottom
 
   doc.line(10, footY, pageW - 10, footY)
   

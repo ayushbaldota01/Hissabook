@@ -20,17 +20,32 @@ export default function NewBill() {
   
   // Items
   const [items, setItems] = useState<BillItem[]>([
-    { id: crypto.randomUUID(), section: 'PARTS', description: '', qty: 1, rate: 0, amount: 0 }
+    { id: crypto.randomUUID(), section: 'PARTS', description: '', qty: 1, rate: '', amount: '', unit: '' }
   ])
-  const [discount, setDiscount] = useState(0)
+  const [discount, setDiscount] = useState<number | ''>('')
 
   const handleItemChange = (id: string, field: keyof BillItem, value: any) => {
     setItems(prev => prev.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value }
-        if (field === 'qty' || field === 'rate') {
-          updated.amount = updated.qty * updated.rate
+        
+        // If qty changed, calculate amount ONLY if rate is present
+        if (field === 'qty') {
+          if (updated.rate !== '') {
+            updated.amount = (Number(updated.qty) || 0) * (Number(updated.rate) || 0) || '';
+          }
+        } 
+        // If rate changed, calculate amount
+        else if (field === 'rate') {
+          if (value !== '') {
+            updated.amount = (Number(updated.qty) || 0) * (Number(value) || 0) || '';
+          }
+        } 
+        // If amount changed, clear rate so it doesn't show ugly decimals
+        else if (field === 'amount') {
+          updated.rate = '';
         }
+        
         return updated
       }
       return item
@@ -38,7 +53,7 @@ export default function NewBill() {
   }
 
   const addItem = (section: 'PARTS' | 'LABOUR') => {
-    setItems(prev => [...prev, { id: crypto.randomUUID(), section, description: '', qty: 1, rate: 0, amount: 0 }])
+    setItems(prev => [...prev, { id: crypto.randomUUID(), section, description: '', qty: 1, rate: '', amount: '', unit: '' }])
   }
 
   const removeItem = (id: string) => {
@@ -48,17 +63,17 @@ export default function NewBill() {
   // Calculate Totals
   const partsItems = items.filter(i => i.section === 'PARTS')
   const labourItems = items.filter(i => i.section === 'LABOUR')
-  const partsTotal = partsItems.reduce((acc, item) => acc + item.amount, 0)
-  const labourTotal = labourItems.reduce((acc, item) => acc + item.amount, 0)
+  const partsTotal = partsItems.reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+  const labourTotal = labourItems.reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
   const subTotal = partsTotal + labourTotal
-  const finalTotal = subTotal - discount
+  const finalTotal = subTotal - (Number(discount) || 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!customerName) return alert('Customer name is required')
     
     // Filter out completely empty items
-    const validItems = items.filter(i => i.description.trim() !== '' || i.amount > 0)
+    const validItems = items.filter(i => i.description.trim() !== '' || (Number(i.amount) || 0) > 0)
     
     setSaving(true)
     const newBill: Bill = {
@@ -71,7 +86,7 @@ export default function NewBill() {
       regNo,
       km,
       items: validItems,
-      discount,
+      discount: Number(discount) || 0,
       total: finalTotal,
       createdAt: new Date().toISOString()
     }
@@ -109,7 +124,7 @@ export default function NewBill() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Customer Name *</label>
-              <input required placeholder="E.g. MR. VISHAL CHAJED" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-teal-500 outline-none text-slate-700" />
+              <input required placeholder="E.g. John Doe" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-teal-500 outline-none text-slate-700" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Mobile No.</label>
@@ -120,7 +135,7 @@ export default function NewBill() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">Reg. No. (Vehicle)</label>
-              <input placeholder="E.g. MH.17.AJ.5110" value={regNo} onChange={e => setRegNo(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-teal-500 outline-none uppercase text-slate-700" />
+              <input placeholder="E.g. MH.12.AB.1234" value={regNo} onChange={e => setRegNo(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-teal-500 outline-none uppercase text-slate-700" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1">K/M (Kilometers)</label>
@@ -145,7 +160,8 @@ export default function NewBill() {
           <div className="p-0 sm:p-2">
             <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-2 text-xs font-bold text-slate-500 bg-white">
               <div className="col-span-1 text-center">#</div>
-              <div className="col-span-5">Description</div>
+              <div className="col-span-4">Description</div>
+              <div className="col-span-1 text-center">Unit</div>
               <div className="col-span-2 text-center">Qty</div>
               <div className="col-span-2 text-right">Rate</div>
               <div className="col-span-2 text-right pr-4">Amount</div>
@@ -154,20 +170,50 @@ export default function NewBill() {
             {partsItems.map((item, index) => (
               <div key={item.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 px-3 py-3 border-b sm:border-0 border-slate-100 last:border-0 relative bg-white items-center">
                 <div className="hidden sm:block col-span-1 text-center text-sm text-slate-400 font-medium">{index + 1}</div>
-                <div className="col-span-12 sm:col-span-5 w-full">
+                <div className="col-span-12 sm:col-span-4 w-full">
                   <input placeholder="Part Description" value={item.description} onChange={e => handleItemChange(item.id, 'description', e.target.value)} className="w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none" />
+                </div>
+                <div className="col-span-4 sm:col-span-1 w-full flex items-center sm:block">
+                  <span className="sm:hidden text-xs text-slate-500 w-12 font-medium">Unit:</span>
+                  <select value={item.unit || ''} onChange={e => handleItemChange(item.id, 'unit', e.target.value)} className="w-full px-2 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none bg-white">
+                    <option value="">-</option>
+                    <option value="Ltr">Ltr</option>
+                    <option value="Pcs">Pcs</option>
+                  </select>
                 </div>
                 <div className="col-span-4 sm:col-span-2 w-full flex items-center sm:block">
                   <span className="sm:hidden text-xs text-slate-500 w-12 font-medium">Qty:</span>
-                  <input type="number" min="0" step="0.01" value={item.qty} onChange={e => handleItemChange(item.id, 'qty', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none sm:text-center" />
+                  <input type="number" min="0" step="0.01" value={item.qty} placeholder="" onChange={e => handleItemChange(item.id, 'qty', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none sm:text-center" />
                 </div>
                 <div className="col-span-4 sm:col-span-2 w-full flex items-center sm:block">
                   <span className="sm:hidden text-xs text-slate-500 w-12 font-medium">Rate:</span>
-                  <input type="number" min="0" step="0.01" value={item.rate} onChange={e => handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none text-right" />
+                  <input type="number" min="0" step="0.01" value={item.rate} placeholder="" onChange={e => handleItemChange(item.id, 'rate', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none text-right" />
                 </div>
-                <div className="col-span-4 sm:col-span-2 w-full flex items-center justify-between sm:justify-end sm:block pr-6">
-                  <span className="sm:hidden text-xs text-slate-500 font-medium">Amt:</span>
-                  <div className="text-sm font-bold text-slate-700 text-right">{item.amount.toFixed(2)}</div>
+                <div className="col-span-4 sm:col-span-2 w-full flex flex-col sm:block pr-6 relative">
+                  <div className="flex items-center justify-between sm:justify-end w-full">
+                    <span className="sm:hidden text-xs text-slate-500 font-medium">Amt:</span>
+                    <input type="number" min="0" step="0.01" value={item.amount} placeholder="" onChange={e => handleItemChange(item.id, 'amount', e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none text-right font-bold text-slate-700" />
+                  </div>
+                  <div className="flex gap-1 mt-1 justify-end sm:absolute sm:right-6 sm:-bottom-4">
+                    {[5, 10, 12, 15].map(pct => (
+                      <button 
+                        key={pct} 
+                        type="button" 
+                        onClick={() => {
+                          const base = (Number(item.qty) || 0) * (Number(item.rate) || 0);
+                          const currentAmt = Number(item.amount) || 0;
+                          // If rate is set, calculate discount from base (qty*rate), else from current amount
+                          const targetAmt = item.rate !== '' && base > 0 ? base : currentAmt;
+                          if (targetAmt > 0) {
+                            handleItemChange(item.id, 'amount', Number((targetAmt - (targetAmt * pct / 100)).toFixed(2)));
+                          }
+                        }} 
+                        className="text-[9px] font-bold text-slate-400 hover:text-teal-600 hover:bg-teal-50 px-1 py-0.5 rounded border border-transparent hover:border-teal-100 transition-colors"
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <button type="button" onClick={() => removeItem(item.id)} className="absolute right-2 sm:right-3 top-3 text-red-400 hover:text-red-600 bg-white rounded-full p-1" title="Remove row">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -207,10 +253,12 @@ export default function NewBill() {
                 {/* For labour, qty is usually 1, user just inputs rate which equals amount */}
                 <div className="col-span-12 sm:col-span-2 w-full flex items-center justify-between sm:justify-end sm:block pr-6 mt-2 sm:mt-0">
                   <span className="sm:hidden text-xs text-slate-500 font-medium">Amount:</span>
-                  <input type="number" min="0" step="0.01" value={item.rate} onChange={e => {
-                    handleItemChange(item.id, 'rate', parseFloat(e.target.value) || 0);
+                  <input type="number" min="0" step="0.01" value={item.amount} onChange={e => {
+                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                    handleItemChange(item.id, 'amount', val);
+                    handleItemChange(item.id, 'rate', val);
                     handleItemChange(item.id, 'qty', 1);
-                  }} className="w-24 sm:w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none text-right font-bold text-slate-700" placeholder="0.00" />
+                  }} className="w-24 sm:w-full px-3 py-2 rounded border border-slate-200 text-sm focus:border-teal-500 outline-none text-right font-bold text-slate-700" placeholder="" />
                 </div>
                 <button type="button" onClick={() => removeItem(item.id)} className="absolute right-2 sm:right-3 top-3 sm:top-5 text-red-400 hover:text-red-600 bg-white rounded-full p-1" title="Remove row">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -234,7 +282,7 @@ export default function NewBill() {
           </div>
           <div className="flex justify-between items-center py-2 border-b border-teal-100/50">
             <span className="text-slate-600">Discount (₹)</span>
-            <input type="number" min="0" step="0.01" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} className="w-24 px-3 py-1 rounded-lg border border-slate-200 focus:border-teal-500 outline-none text-right font-medium text-red-600 bg-white" />
+            <input type="number" min="0" step="0.01" value={discount} placeholder="" onChange={e => setDiscount(e.target.value === '' ? '' : parseFloat(e.target.value))} className="w-24 px-3 py-1 rounded-lg border border-slate-200 focus:border-teal-500 outline-none text-right font-medium text-red-600 bg-white" />
           </div>
           <div className="flex justify-between items-center py-4">
             <span className="font-bold text-slate-800 text-lg">Grand Total</span>
