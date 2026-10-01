@@ -44,7 +44,8 @@ const Typewriter = ({ text, startFrame, frame }: { text: string, startFrame: num
 // Scene 1: The Dual Problem
 const Scene1 = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
 
   const slideLeft = interpolate(frame, [fps * 4, fps * 5], [0, -100], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.8, 0.25, 1) });
   const slideRight = interpolate(frame, [fps * 4, fps * 5], [0, 100], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.8, 0.25, 1) });
@@ -71,7 +72,8 @@ const Scene1 = () => {
 // Scene 2: Plant Entry
 const Scene2 = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
 
   const scale = spring({ fps, frame, config: { damping: 14 } });
   
@@ -117,7 +119,8 @@ const Scene2 = () => {
 // Scene 3: Management Ledger
 const Scene3 = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
 
   const slideUp = interpolate(frame, [0, fps], [100, 0], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.8, 0.25, 1) });
   
@@ -177,7 +180,8 @@ const Scene3 = () => {
 // Scene 4: Analytics
 const Scene4 = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
 
   const scale = spring({ fps, frame, config: { damping: 14 } });
 
@@ -224,7 +228,8 @@ const Scene4 = () => {
 // Scene 5: Outro
 const Scene5 = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
 
   const scale = interpolate(frame, [0, fps * 2], [0.8, 1], { extrapolateRight: 'clamp', easing: Easing.bezier(0.25, 0.8, 0.25, 1) });
 
@@ -242,7 +247,8 @@ const Scene5 = () => {
 };
 
 export const TulaPromo = () => {
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
   
   return (
     <AbsoluteFill style={{ backgroundColor: colors.bg }}>

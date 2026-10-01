@@ -10,7 +10,8 @@ export const Silo = ({
   startFrame: number;
 }) => {
   const frame = useCurrentFrame() - startFrame;
-  const { fps } = useVideoConfig();
+  const { fps: realFps } = useVideoConfig();
+  const fps = realFps / 1.5;
 
   // Calculations similar to the web app
   const m = moisture;
